@@ -1,0 +1,1 @@
+This folder is used to store temporary data. Usually is used for storing dataset.
