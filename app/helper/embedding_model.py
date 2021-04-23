@@ -2,7 +2,21 @@ from transformers import AutoTokenizer, BertTokenizer, AutoModel
 import torch
 import numpy as np
 import pandas as pd
+import sys
 from sklearn.feature_extraction.text import TfidfVectorizer
+print('__Python VERSION:', sys.version)
+print('__pyTorch VERSION:', torch.__version__)
+print('__CUDA VERSION', )
+from subprocess import call
+# call(["nvcc", "--version"]) does not work
+print('__CUDNN VERSION:', torch.backends.cudnn.version())
+print('__Number CUDA Devices:', torch.cuda.device_count())
+print('__Devices')
+# call(["nvidia-smi", "--format=csv", "--query-gpu=index,name,driver_version,memory.total,memory.used,memory.free"])
+print('Active CUDA Device: GPU', torch.cuda.current_device())
+print ('Available devices ', torch.cuda.device_count())
+print ('Current cuda device ', torch.cuda.current_device())
+print ('Device name ', torch.cuda.get_device_name(0))
 
 BERT = 'BERT'
 TFIDF = 'TFIDF'
@@ -28,6 +42,13 @@ class EmbeddingModel:
         return tokendata
 
     def BERT_embedding(self, task):
+
+        if torch.cuda.is_available():
+            dev = "cuda:0"
+        else:
+            dev = "cpu"  
+
+        device = torch.device(dev)
         tokenizer = BertTokenizer.from_pretrained(
             IDB_INDOBENCH_LITE)
 
@@ -40,14 +61,17 @@ class EmbeddingModel:
         padded = np.array([i + [0]*(max_len-len(i)) for i in tokens])
         attention_mask = np.where(padded != 0, 1, 0)
 
-        input_ids = torch.tensor(padded)
+        input_ids = torch.tensor(padded).to(device)
 
-        attention_mask = torch.tensor(attention_mask)
+        attention_mask = torch.tensor(attention_mask).to(device)
         with torch.no_grad():
-            last_hidden_states = bert_model(
+            gpu_model = bert_model.to(device)
+            last_hidden_states = gpu_model(
                 input_ids, attention_mask=attention_mask)
-
-        features = last_hidden_states[0][:, 0, :].numpy()
+        
+        #last_hidden_states = last_hidden_states.cpu()
+        features = last_hidden_states[0][:, 0, :]
+        features.cpu().numpy()
         return features
 
     def tfidf_vecotrizer(self, train, test):
